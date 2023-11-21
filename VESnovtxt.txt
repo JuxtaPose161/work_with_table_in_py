@@ -1,0 +1,6 @@
+index	name	age	bmi
+1	Oleg	24	187,00
+2	Avraam	30	21,20
+3	Eva	15	17,90
+4	Rudolf	31	25,10
+5	Gans	62	23,80
