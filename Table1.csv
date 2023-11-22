@@ -1,0 +1,6 @@
+index;name;age;bmi;driving_license
+1;Alex;26;22,7;True
+2;Ben;31;26,3;True
+3;Carlos;23;20,1;False
+4;Dmitriy;40;23,2;True
+5;Eva;21;19,9;False

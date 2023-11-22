@@ -1,0 +1,4 @@
+index	name	age	bmi	driving_license
+5	Felix	25	21	False
+6	Helen	32	20,1	True
+7	Isac	19	23,2	False

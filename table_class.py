@@ -1,6 +1,7 @@
 import csv
 import pickle
 
+
 class GigaTable():
     def __init__(self):
         self.table = []
@@ -20,17 +21,31 @@ class GigaTable():
                 result = func(*arg, **kwarg)
                 return result
             except TypeError:
-                print('Ошибка: Введены неправильные аргументы или их неправильное колличество')
+                print('Ошибка: Введены неправильные аргументы или их неправильное количество')
             except IndexError:
                 print('Ошибка: Выбранная строка или столбец несуществует или не может быть передана')
             except ValueError:
                 print('Ошибка: Один из переданных аргументов не существует')
-            except NameError:
-                print('Ошибка: ')
+            except:
+                print('Ошибка: Что-то не так, что на тестах я не увидел)')
         return check_errors
-                
-
-
+    
+    def _dec_set_func(func):
+        def check_errors(*arg, **kwarg):
+            try:
+                func(*arg, **kwarg)
+            except AttributeError:
+                print('Ошибка: Передан аргумент неправильного типа')
+            except ValueError:
+                print('Ошибка: Невозможно установить одно или несколько переданных значений')
+            except IndexError:
+                print('Ошибка: Выбранная строка или столбец несуществует или не может быть передана')
+            except TypeError:
+                print('Ошибка: Введены неправильные аргументы или их неправильное количество')
+            except: 
+                print('Ошибка: Что-то не так, что на тестах я не увидел)')
+        return check_errors
+                         
     #main funcion's stack
     @_dec_load_save_table
     def load_table(self, path: str):
@@ -40,13 +55,15 @@ class GigaTable():
             with open(path, 'r') as f:
                 lines = f.readlines()
                 for line in lines:
-                    line = line.replace(r'\t',' ').split()
+                    line = line.replace(r'\t',' ').replace(',','.').split()
                     self.table.append(line)
 
         elif format == 'csv':
             with open(path, 'r') as f:
                 reader = csv.reader(f,delimiter = ";")     
                 for line in reader:
+                    for value in line:
+                        line[line.index(value)] = value.replace(',','.')
                     self.table.append(line)
         
         elif format == 'pickle':
@@ -84,10 +101,6 @@ class GigaTable():
                 pickle.dump(self.table, f)
         else:
             raise ValueError
-
-    def _add_column(self):
-        for line in range(len(self.table)):
-            self.table[line].append('')
 
     @_dec_get_func
     def get_rows_by_numbers(self, start:int, stop=None, copy_in_table=False):
@@ -131,13 +144,20 @@ class GigaTable():
                 column_types_dict[column]=self.table[-1][column]
         return column_types_dict
     
-    
+    @_dec_set_func
     def set_column_types(self, types_dict: dict, by_number=True):
         for column, column_type in types_dict.items():
-            if by_number == False:
+            if by_number==False:
                 column = self.table[0].index(column)
+            elif type(by_number)!= bool:
+                raise IndexError
             self.table[-1][column] = column_type
         for column in range(len(self.table[0])):
+            if self.table[-1][column] == bool and type(self.table[1][column])==str:
+                for line in range(1,len(self.table)-1):
+                    if self.table[line][column].lower() == 'false':
+                        self.table[line][column] = ''
+
             for line in range(1,len(self.table)-1):
                 self.table[line][column] = self.table[-1][column](self.table[line][column])
 
@@ -164,17 +184,29 @@ class GigaTable():
                 raise IndexError
         return self.table[line][column]
     
-    def set_values(self, values, column=0):
-        if type(column)==str:
-            column = self.table[0].index(column)
-        for value in values:
-            line = values.index(value) + 1
-            column_type = self.table[-1][column]
-            self.table[line][column] = column_type(value)
-
+    @_dec_set_func
+    def set_values(self, values:list, column=0):
+        if type(values)!=list:
+            raise AttributeError
+        elif type(column)!=int:
+            try:
+                column = self.table[0].index(column)
+            except:
+                raise IndexError
+        elif self.table[-1][column]!=type(values[0]):
+            raise AttributeError
+        for line in range(1,len(self.table)-1):
+            self.table[line][column] = values[line-1]
+        
+    @_dec_set_func
     def set_value(self, value, column=0, line=1):
-        if type(column)==str:
-            column = self.table[0].index(column)
+        if type(column)!=int:
+            try:
+                column = self.table[0].index(column)
+            except:
+                raise IndexError
+        elif self.table[-1][column]!=type(value):
+            raise AttributeError
         self.table[line][column] = value
     
     @_dec_get_func
@@ -245,7 +277,8 @@ class GigaTable():
             raise ValueError
 
         if copy_in_table == True:
-            self._add_column()
+            for line in range(len(self.table)):
+                self.table[line].append('')
             new_column = len(self.table[0])-1
             for line in range(len(self.table)-1):
                 self.table[line][new_column]=result[line] 
@@ -271,48 +304,59 @@ class GigaTable():
         
 
 def concat(*tables: GigaTable):
-    result = []
-    first_t, *next_t = tables
-    for line in first_t.table[:len(first_t.table)-1]:
-        result.append(line)
-    column_type = first_t.table[-1]
-    for t in next_t:
-        if t.table[0] == result[0] and t.table[-1] == column_type:
-            for line in t.table[1:len(t.table)-1]:
-                result.append(line)
-        else:
-            raise ValueError
-    result.append(column_type)
+    try:
+        result = []
+        first_t, *next_t = tables
+        if first_t != GigaTable:
+            raise TypeError
+        for line in first_t.table[:len(first_t.table)-1]:
+            result.append(line)
+        column_type = first_t.table[-1]
+        for t in next_t:
+            if t != GigaTable:
+                raise TypeError
+            if t.table[0] == result[0] and t.table[-1] == column_type:
+                for line in t.table[1:len(t.table)-1]:
+                    result.append(line)
+            else:
+                raise ValueError
+        result.append(column_type)
 
-    new_t = GigaTable()
-    new_t.table = result
+        new_t = GigaTable()
+        new_t.table = result
 
-    return new_t
+        return new_t
+    except TypeError:
+        print('Ошибка: Введен неправильный тип аргумента')
+    except ValueError:
+        print('Ошибка: Таблицы не совпадают содержанием')
 
 def table_split(table_obj: GigaTable, row_number: int):
-    header_row = table_obj.table[0]
-    type_row = table_obj.table[-1]
-    first_table = GigaTable()
-    second_table = GigaTable()
-    first_table.table.append(header_row)
-    second_table.table.append(header_row)
-    for line in table_obj.table[1:row_number+1]:
-        first_table.table.append(line)
-    for line in table_obj.table[row_number+1:len(table_obj.table)-1]:
-        second_table.table.append(line)
-    first_table.table.append(type_row)
-    second_table.table.append(type_row)
-    
-    return first_table, second_table
+    try:
+        if type(table_obj)!=GigaTable:
+            raise TypeError
+        elif type(row_number) != int:
+            raise TypeError
+        elif row_number >= len(table_obj.table)-2 or row_number < 1:
+            raise ValueError
+        header_row = table_obj.table[0]
+        type_row = table_obj.table[-1]
+        first_table = GigaTable()
+        second_table = GigaTable()
+        first_table.table.append(header_row)
+        second_table.table.append(header_row)
+        for line in table_obj.table[1:row_number+1]:
+            first_table.table.append(line)
+        for line in table_obj.table[row_number+1:len(table_obj.table)-1]:
+            second_table.table.append(line)
+        first_table.table.append(type_row)
+        second_table.table.append(type_row)
 
-
-
-t = GigaTable()
-t.load_table('FinTask\ogurchik.pickle')
-t.print_table()
-t.function_with_columns(1,'-',3,copy_in_table=True)
-t.function_with_columns(2,'<',3,copy_in_table=True)
-t.print_table()
+        return first_table, second_table
+    except TypeError:
+        print('Ошибка: Введен неправильный тип аргумента')
+    except ValueError:
+        print('Ошибка: Передано неверное значение')
 
 # Доделать проверки на исключения 
 # Организовать показ возможностей
