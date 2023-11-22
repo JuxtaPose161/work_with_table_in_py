@@ -80,11 +80,11 @@ class GigaTable():
     @_dec_load_save_table
     def save_table(self,path:str):
         format = path.split('.')[-1]
-        del self.table[-1]
+        output = self.table[:len(self.table)-1]
 
         if format == 'txt':
             with open(path, 'w+') as f:
-                for line in self.table:
+                for line in output:
                     for i in line:
                         f.write(i)
                         f.write(' ')
@@ -93,12 +93,12 @@ class GigaTable():
         elif format == 'csv':
             with open(path, 'w+', newline='') as f:
                 writer = csv.writer(f)
-                for line in self.table:
+                for line in output:
                     writer.writerow(line)
         
         elif format == 'pickle':
             with open(path, 'wb') as f:
-                pickle.dump(self.table, f)
+                pickle.dump(output, f)
         else:
             raise ValueError
 
@@ -208,16 +208,24 @@ class GigaTable():
         elif self.table[-1][column]!=type(value):
             raise AttributeError
         self.table[line][column] = value
-    
+
     @_dec_get_func
     def print_table(self):
-        result = '\n'
+        column = [] 
+        max_len_list = []       
+        for column_index in range(len(self.table[0])):
+            for line_index in range(len(self.table)-1):
+                column.append(str(self.table[line_index][column_index]))
+            max_len_list.append(len(max(column, key=len)))
+            column = []
+        
         for line in self.table[:len(self.table)-1]:
-            str_values = [value for value in map(str,line)]
-            for value in str_values:
-                result += value + ' '
-            result += '\n'
-        print(result)    
+            row_on_print = ''
+            for value_index in range(len(line)):
+                column_width = max_len_list[value_index]
+                row_on_print += f'|{str(line[value_index]):{column_width}}'
+            row_on_print += '|'    
+            print(row_on_print)   
     
     @_dec_get_func
     def function_with_columns(self, column_1, func:str, column_2, copy_in_table = False):
@@ -287,14 +295,17 @@ class GigaTable():
             raise TypeError
         return result
     
-    @_dec_get_func
+
     def filter_row(self, bool_list, copy_in_table = False):
         table_clone = []
-        if bool_list != int:
+        if type(bool_list) != int:
             try:
                 bool_list = self.table[0].index(bool_list)
             except:
                 raise IndexError
+        elif self.table[-1][bool_list]!=bool:
+            print(self.table[-1][bool_list])
+            raise TypeError
         for line in self.table[1:len(self.table)-1]:
             if line[bool_list] == True:
                 table_clone.append(line)
@@ -307,13 +318,13 @@ def concat(*tables: GigaTable):
     try:
         result = []
         first_t, *next_t = tables
-        if first_t != GigaTable:
+        if type(first_t) != GigaTable:
             raise TypeError
         for line in first_t.table[:len(first_t.table)-1]:
             result.append(line)
         column_type = first_t.table[-1]
         for t in next_t:
-            if t != GigaTable:
+            if type(t) != GigaTable:
                 raise TypeError
             if t.table[0] == result[0] and t.table[-1] == column_type:
                 for line in t.table[1:len(t.table)-1]:
@@ -357,6 +368,3 @@ def table_split(table_obj: GigaTable, row_number: int):
         print('Ошибка: Введен неправильный тип аргумента')
     except ValueError:
         print('Ошибка: Передано неверное значение')
-
-# Доделать проверки на исключения 
-# Организовать показ возможностей
